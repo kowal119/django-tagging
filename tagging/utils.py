@@ -6,14 +6,9 @@ import math
 import types
 
 from django.db.models.query import QuerySet
-from django.utils.encoding import force_unicode
+from django.utils.encoding import force_text
 from django.utils.translation import ugettext as _
 
-# Python 2.3 compatibility
-try:
-    set
-except NameError:
-    from sets import Set as set
 
 def parse_tag_input(input):
     """
@@ -26,7 +21,7 @@ def parse_tag_input(input):
     if not input:
         return []
 
-    input = force_unicode(input)
+    input = force_text(input)
 
     # Special case - if there are no commas or double quotes in the
     # input, we don't *do* a recall... I mean, we know we only need to
@@ -46,17 +41,17 @@ def parse_tag_input(input):
     i = iter(input)
     try:
         while 1:
-            c = i.next()
+            c = next(i)
             if c == u'"':
                 if buffer:
                     to_be_split.append(u''.join(buffer))
                     buffer = []
                 # Find the matching quote
                 open_quote = True
-                c = i.next()
+                c = next(i)
                 while c != u'"':
                     buffer.append(c)
-                    c = i.next()
+                    c = next(i)
                 if buffer:
                     word = u''.join(buffer).strip()
                     if word:
@@ -164,23 +159,23 @@ def get_tag_list(tags):
         return [tags]
     elif isinstance(tags, QuerySet) and tags.model is Tag:
         return tags
-    elif isinstance(tags, types.StringTypes):
+    elif isinstance(tags, str):
         return Tag.objects.filter(name__in=parse_tag_input(tags))
-    elif isinstance(tags, (types.ListType, types.TupleType)):
+    elif isinstance(tags, (list, tuple)):
         if len(tags) == 0:
             return tags
         contents = set()
         for item in tags:
-            if isinstance(item, types.StringTypes):
+            if isinstance(item, str):
                 contents.add('string')
             elif isinstance(item, Tag):
                 contents.add('tag')
-            elif isinstance(item, (types.IntType, types.LongType)):
+            elif isinstance(item, int):
                 contents.add('int')
         if len(contents) == 1:
             if 'string' in contents:
-                return Tag.objects.filter(name__in=[force_unicode(tag) \
-                                                    for tag in tags])
+                    return Tag.objects.filter(name__in=[force_text(tag) \
+                                                        for tag in tags])
             elif 'tag' in contents:
                 return tags
             elif 'int' in contents:

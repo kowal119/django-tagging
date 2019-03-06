@@ -10,7 +10,7 @@ class Parrot(models.Model):
     state = models.CharField(max_length=50)
     perch = models.ForeignKey(Perch, null=True)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.state
 
     class Meta:
@@ -19,7 +19,7 @@ class Parrot(models.Model):
 class Link(models.Model):
     name = models.CharField(max_length=50)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     class Meta:
@@ -28,7 +28,7 @@ class Link(models.Model):
 class Article(models.Model):
     name = models.CharField(max_length=50)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     class Meta:

@@ -1,5 +1,5 @@
-from django.db.models import get_model
-from django.template import Library, Node, TemplateSyntaxError, Variable, resolve_variable
+from django.apps import apps
+from django.template import Library, Node, TemplateSyntaxError, Variable
 from django.utils.translation import ugettext as _
 
 from tagging.models import Tag, TaggedItem
@@ -14,7 +14,7 @@ class TagsForModelNode(Node):
         self.counts = counts
 
     def render(self, context):
-        model = get_model(*self.model.split('.'))
+        model = apps.get_model(*self.model.split('.'))
         if model is None:
             raise TemplateSyntaxError(_('tags_for_model tag was given an invalid model: %s') % self.model)
         context[self.context_var] = Tag.objects.usage_for_model(model, counts=self.counts)
@@ -27,12 +27,35 @@ class TagCloudForModelNode(Node):
         self.kwargs = kwargs
 
     def render(self, context):
-        model = get_model(*self.model.split('.'))
+        model = apps.get_model(*self.model.split('.'))
         if model is None:
             raise TemplateSyntaxError(_('tag_cloud_for_model tag was given an invalid model: %s') % self.model)
         context[self.context_var] = \
             Tag.objects.cloud_for_model(model, **self.kwargs)
         return ''
+
+
+class PopularTagsForModelNode(Node):
+    def __init__(self, model, context_var, limit=20):
+        self.model = model
+        self.context_var = context_var
+        self.limit = limit
+
+    def render(self, context):
+        model = apps.get_model(*context[self.model].split('.'))
+        if model is None:
+            raise TemplateSyntaxError(_('tags_for_model tag was given an invalid model: %s') % self.model)
+        tags = Tag.objects.usage_for_model(model, counts=True)
+        # tags returned with above method are not proper instances of Tag so we lets query again
+        tags = sorted(tags, key=lambda tag: tag.count, reverse=True)[:self.limit]
+        ordered_ids = [tag.id for tag in tags]
+        tags = Tag.objects.filter(pk__in=ordered_ids)
+        sorted_tags = list()
+        for id in ordered_ids:
+            sorted_tags.append(tags.get(pk=id))
+        context[self.context_var] = sorted_tags
+        return ''
+
 
 class TagsForObjectNode(Node):
     def __init__(self, obj, context_var):
@@ -51,12 +74,36 @@ class TaggedObjectsNode(Node):
         self.model = model
 
     def render(self, context):
-        model = get_model(*self.model.split('.'))
+        model = apps.get_model(*self.model.split('.'))
         if model is None:
             raise TemplateSyntaxError(_('tagged_objects tag was given an invalid model: %s') % self.model)
         context[self.context_var] = \
             TaggedItem.objects.get_by_model(model, self.tag.resolve(context))
         return ''
+
+
+def do_popular_tags_for_model(parser, token):
+    bits = token.contents.split()
+    len_bits = len(bits)
+    if len_bits != 4:
+        raise TemplateSyntaxError(_('%s tag requires four arguments') % bits[0])
+    if bits[2] != 'as':
+        raise TemplateSyntaxError(_("second argument to %s tag must be 'as'") % bits[0])
+
+    return PopularTagsForModelNode(bits[1], bits[3], 20)
+
+
+def do_short_popular_tags_for_model(parser, token):
+    bits = token.contents.split()
+    len_bits = len(bits)
+    if len_bits != 4:
+        raise TemplateSyntaxError(_('%s tag requires four arguments') % bits[0])
+    if bits[2] != 'as':
+        raise TemplateSyntaxError(_("second argument to %s tag must be 'as'") % bits[0])
+
+    return PopularTagsForModelNode(bits[1], bits[3], 7)
+
+
 
 def do_tags_for_model(parser, token):
     """
@@ -226,6 +273,10 @@ def do_tagged_objects(parser, token):
     return TaggedObjectsNode(bits[1], bits[3], bits[5])
 
 register.tag('tags_for_model', do_tags_for_model)
+register.tag('popular_tags_for_model', do_popular_tags_for_model)
+register.tag('short_popular_tags_for_model', do_short_popular_tags_for_model)
 register.tag('tag_cloud_for_model', do_tag_cloud_for_model)
 register.tag('tags_for_object', do_tags_for_object)
 register.tag('tagged_objects', do_tagged_objects)
+
+
