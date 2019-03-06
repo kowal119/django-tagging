@@ -9,8 +9,8 @@ retrieval of tags simple.
 .. _`Django`: http://www.djangoproject.com
 
 .. contents::
-   :depth: 3
-
+    :local:
+    :depth: 3
 
 Installation
 ============
@@ -19,37 +19,31 @@ Installing an official release
 ------------------------------
 
 Official releases are made available from
-http://code.google.com/p/django-tagging/
+https://pypi.python.org/pypi/django-tagging/
 
 Source distribution
 ~~~~~~~~~~~~~~~~~~~
 
-Download the .zip distribution file and unpack it. Inside is a script
+Download the a distribution file and unpack it. Inside is a script
 named ``setup.py``. Enter this command::
 
-   python setup.py install
+  $ python setup.py install
 
 ...and the package will install automatically.
 
-Windows installer
-~~~~~~~~~~~~~~~~~
+More easily with :program:`pip`::
 
-A Windows installer is also made available - download the .exe
-distribution file and launch it to install the application.
-
-An uninstaller will also be created, accessible through Add/Remove
-Programs in your Control Panel.
+  $ pip install django-tagging
 
 Installing the development version
 ----------------------------------
 
 Alternatively, if you'd like to update Django Tagging occasionally to pick
 up the latest bug fixes and enhancements before they make it into an
-official release, perform a `Subversion`_ checkout instead. The following
-command will check the application's development branch out to an
-``tagging-trunk`` directory::
+official release, clone the git repository instead. The following
+command will clone the development branch to ``django-tagging`` directory::
 
-   svn checkout http://django-tagging.googlecode.com/svn/trunk/ tagging-trunk
+   git clone git@github.com:Fantomas42/django-tagging.git
 
 Add the resulting folder to your `PYTHONPATH`_ or symlink (`junction`_,
 if you're on Windows) the ``tagging`` directory inside it into a
@@ -60,26 +54,23 @@ You can verify that the application is available on your PYTHONPATH by
 opening a Python interpreter and entering the following commands::
 
    >>> import tagging
-   >>> tagging.VERSION
-   (0, 3, 'pre')
+   >>> tagging.__version__
+   0.4.dev0
 
 When you want to update your copy of the Django Tagging source code, run
-the command ``svn update`` from within the ``tagging-trunk`` directory.
+the command ``git pull`` from within the ``django-tagging`` directory.
 
 .. caution::
 
    The development version may contain bugs which are not present in the
    release version and introduce backwards-incompatible changes.
 
-   If you're tracking trunk, keep an eye on the `CHANGELOG`_ and the
-   `backwards-incompatible changes wiki page`_ before you update your
-   copy of the source code.
+   If you're tracking git, keep an eye on the `CHANGELOG`_
+   before you update your copy of the source code.
 
-.. _`Subversion`: http://subversion.tigris.org
 .. _`PYTHONPATH`: http://www.python.org/doc/2.5.2/tut/node8.html#SECTION008120000000000000000
 .. _`junction`: http://www.microsoft.com/technet/sysinternals/FileAndDisk/Junction.mspx
-.. _`CHANGELOG`: http://django-tagging.googlecode.com/svn/trunk/CHANGELOG.txt
-.. _`backwards-incompatible changes wiki page`: http://code.google.com/p/django-tagging/wiki/BackwardsIncompatibleChanges
+.. _`CHANGELOG`: https://github.com/Fantomas42/django-tagging/blob/develop/CHANGELOG.txt
 
 Using Django Tagging in your applications
 -----------------------------------------
@@ -88,13 +79,12 @@ Once you've installed Django Tagging and want to use it in your Django
 applications, do the following:
 
    1. Put ``'tagging'`` in your ``INSTALLED_APPS`` setting.
-   2. Run the command ``manage.py syncdb``.
+   2. Run the command ``manage.py migrate``.
 
-The ``syncdb`` command creates the necessary database tables and
+The ``migrate`` command creates the necessary database tables and
 creates permission objects for all installed apps that need them.
 
 That's it!
-
 
 Settings
 ========
@@ -139,17 +129,17 @@ access some additional tagging-related features.
 The ``register`` function
 -------------------------
 
-To register a model, import the ``tagging`` module and call its
+To register a model, import the ``tagging.registry`` module and call its
 ``register`` function, like so::
 
    from django.db import models
 
-   import tagging
+   from tagging.registry import register
 
    class Widget(models.Model):
        name = models.CharField(max_length=50)
 
-   tagging.register(Widget)
+   register(Widget)
 
 The following argument is required:
 
@@ -170,7 +160,7 @@ with your model class' definition:
    See `TagDescriptor`_ below for details about the use of this
    descriptor.
 
-``tagged_item_manger_attr``
+``tagged_item_manager_attr``
    The name of an attribute in the model class which will hold a custom
    manager for accessing tagged items for the model. Default:
    ``'tagged'``.
@@ -206,7 +196,7 @@ A manager for retrieving tags used by a particular model.
 
 Defines the following methods:
 
-* ``get_query_set()`` -- as this method is redefined, any ``QuerySets``
+* ``get_queryset()`` -- as this method is redefined, any ``QuerySets``
   created by this model will be initially restricted to contain the
   distinct tags used by all the model's instances.
 
@@ -725,29 +715,26 @@ Generic views
 The ``tagging.views`` module contains views to handle simple cases of
 common display logic related to tagging.
 
-``tagging.views.tagged_object_list``
-------------------------------------
+``tagging.views.TaggedObjectList``
+----------------------------------
 
 **Description:**
 
 A view that displays a list of objects for a given model which have a
 given tag. This is a thin wrapper around the
-``django.views.generic.list_detail.object_list`` view, which takes a
+``django.views.generic.list.ListView`` view, which takes a
 model and a tag as its arguments (in addition to the other optional
-arguments supported by ``object_list``), building the appropriate
+arguments supported by ``ListView``), building the appropriate
 ``QuerySet`` for you instead of expecting one to be passed in.
 
 **Required arguments:**
-
-   * ``queryset_or_model``: A ``QuerySet`` or Django model class for the
-     object which will be listed.
 
    * ``tag``: The tag which objects of the given model must have in
      order to be listed.
 
 **Optional arguments:**
 
-Please refer to the `object_list documentation`_ for additional optional
+Please refer to the `ListView documentation`_ for additional optional
 arguments which may be given.
 
    * ``related_tags``: If ``True``, a ``related_tags`` context variable
@@ -761,12 +748,12 @@ arguments which may be given.
 
 **Template context:**
 
-Please refer to the `object_list documentation`_ for  additional
+Please refer to the `ListView documentation`_ for  additional
 template context variables which may be provided.
 
    * ``tag``: The ``Tag`` instance for the given tag.
 
-.. _`object_list documentation`: http://docs.djangoproject.com/en/dev/ref/generic-views/#django-views-generic-list-detail-object-list
+.. _`ListView documentation`: https://docs.djangoproject.com/en/1.8/ref/class-based-views/generic-display/#listview
 
 Example usage
 ~~~~~~~~~~~~~
@@ -776,15 +763,13 @@ list items of a particular model class which have a given tag::
 
    from django.conf.urls.defaults import *
 
-   from tagging.views import tagged_object_list
+   from tagging.views import TaggedObjectList
 
    from shop.apps.products.models import Widget
 
    urlpatterns = patterns('',
-       url(r'^widgets/tag/(?P<tag>[^/]+)/$',
-           tagged_object_list,
-           dict(queryset_or_model=Widget, paginate_by=10, allow_empty=True,
-                template_object_name='widget'),
+       url(r'^widgets/tag/(?P<tag>[^/]+(?u))/$',
+           TaggedObjectList.as_view(model=Widget, paginate_by=10, allow_empty=True),
            name='widget_tag_detail'),
    )
 
@@ -793,13 +778,10 @@ perform filtering of the objects which are listed::
 
    from myapp.models import People
 
-   from tagging.views import tagged_object_list
+   from tagging.views import TaggedObjectList
 
-   def tagged_people(request, country_code, tag):
+   class TaggedPeopleFilteredList(TaggedObjectList):
        queryset = People.objects.filter(country__code=country_code)
-       return tagged_object_list(request, queryset, tag, paginate_by=25,
-           allow_empty=True, template_object_name='people')
-
 
 Template tags
 =============
@@ -902,3 +884,4 @@ The tag must be an instance of a ``Tag``, not the name of a tag.
 Example::
 
     {% tagged_objects comedy_tag in tv.Show as comedies %}
+
