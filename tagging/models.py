@@ -2,12 +2,10 @@
 Models and managers for generic tagging.
 """
 # Python 2.3 compatibility
-try:
-    set
-except NameError:
-    from sets import Set as set
+from django.template.defaultfilters import slugify
 
-from django.contrib.contenttypes import generic
+
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection, models
 from django.db.models.query import QuerySet
@@ -18,6 +16,7 @@ from tagging.utils import calculate_cloud, get_tag_list, get_queryset_and_model,
 from tagging.utils import LOGARITHMIC
 
 qn = connection.ops.quote_name
+
 
 ############
 # Managers #
@@ -95,6 +94,7 @@ class TagManager(models.Manager):
             %%s
         WHERE %(tagged_item)s.content_type_id = %(content_type_id)s
             %%s
+            AND %(tag)s.name != '#'
         GROUP BY %(tag)s.id, %(tag)s.name
         %%s
         ORDER BY %(tag)s.name ASC""" % {
@@ -267,6 +267,7 @@ class TagManager(models.Manager):
                                          min_count=min_count))
         return calculate_cloud(tags, steps, distribution)
 
+
 class TaggedItemManager(models.Manager):
     """
     FIXME There's currently no way to get the ``GROUP BY`` and ``HAVING``
@@ -280,6 +281,7 @@ class TaggedItemManager(models.Manager):
           Now that the queryset-refactor branch is in the trunk, this can be
           tidied up significantly.
     """
+
     def get_by_model(self, queryset_or_model, tags):
         """
         Create a ``QuerySet`` containing instances of the specified
@@ -335,8 +337,7 @@ class TaggedItemManager(models.Manager):
         WHERE %(tagged_item)s.content_type_id = %(content_type_id)s
           AND %(tagged_item)s.tag_id IN (%(tag_id_placeholders)s)
           AND %(model_pk)s = %(tagged_item)s.object_id
-        GROUP BY %(model_pk)s
-        HAVING COUNT(%(model_pk)s) = %(tag_count)s""" % {
+        GROUP BY %(model_pk)s""" % {
             'model_pk': '%s.%s' % (model_table, qn(model._meta.pk.column)),
             'model': model_table,
             'tagged_item': qn(self.model._meta.db_table),
@@ -348,6 +349,7 @@ class TaggedItemManager(models.Manager):
         cursor = connection.cursor()
         cursor.execute(query, [tag.pk for tag in tags])
         object_ids = [row[0] for row in cursor.fetchall()]
+
         if len(object_ids) > 0:
             return queryset.filter(pk__in=object_ids)
         else:
@@ -449,6 +451,7 @@ class TaggedItemManager(models.Manager):
         else:
             return []
 
+
 ##########
 # Models #
 ##########
@@ -458,6 +461,7 @@ class Tag(models.Model):
     A tag.
     """
     name = models.CharField(_('name'), max_length=50, unique=True, db_index=True)
+    slug = models.SlugField(editable=False)
 
     objects = TagManager()
 
@@ -466,17 +470,22 @@ class Tag(models.Model):
         verbose_name = _('tag')
         verbose_name_plural = _('tags')
 
-    def __unicode__(self):
+    def save(self, *args, **kwargs):
+        self.slug = slugify(self.name)
+        super(Tag, self).save(*args, **kwargs)
+
+    def __str__(self):
         return self.name
+
 
 class TaggedItem(models.Model):
     """
     Holds the relationship between a tag and the item being tagged.
     """
-    tag          = models.ForeignKey(Tag, verbose_name=_('tag'), related_name='items')
+    tag = models.ForeignKey(Tag, verbose_name=_('tag'), related_name='items')
     content_type = models.ForeignKey(ContentType, verbose_name=_('content type'))
-    object_id    = models.PositiveIntegerField(_('object id'), db_index=True)
-    object       = generic.GenericForeignKey('content_type', 'object_id')
+    object_id = models.PositiveIntegerField(_('object id'), db_index=True)
+    object = GenericForeignKey('content_type', 'object_id')
 
     objects = TaggedItemManager()
 
@@ -486,5 +495,5 @@ class TaggedItem(models.Model):
         verbose_name = _('tagged item')
         verbose_name_plural = _('tagged items')
 
-    def __unicode__(self):
+    def __str__(self):
         return u'%s [%s]' % (self.object, self.tag)

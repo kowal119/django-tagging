@@ -37,20 +37,15 @@ class TagField(CharField):
         """
         Tag getter. Returns an instance's tags if accessed on an instance, and
         all of a model's tags if called on a class. That is, this model::
-
            class Link(models.Model):
                ...
                tags = TagField()
-
         Lets you do both of these::
-
            >>> l = Link.objects.get(...)
            >>> l.tags
            'tag1 tag2 tag3'
-
            >>> Link.tags
            'tag1 tag2 tag3 tag4'
-
         """
         # Handle access on the model (i.e. Link.tags)
         if instance is None:
